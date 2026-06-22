@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+/* PropTrack design tokens. @theme exposes these as Tailwind utilities
+   (e.g. bg-header, text-brand). Colors picked to match the mockup. */
+@theme {
+  --color-header: #0e3a3a; /* dark teal nav bar */
+  --color-brand: #10b981; /* emerald accent / primary button */
+  --color-brand-hover: #059669;
+  --color-page: #f8fafc; /* page background */
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-page);
+  color: #0f172a;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
