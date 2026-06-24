@@ -1,15 +1,33 @@
-// Visual placeholder. Matches the mockup chrome but is intentionally inert in the
-// MVP — the API already supports propertyType/status/metroArea/min-max price, so
-// wiring these later is additive. Everything here is disabled.
+import { useEffect, useState } from "react";
+import Dropdown from "./Dropdown";
+import {
+  METRO_OPTIONS,
+  STATUS_OPTIONS,
+  TYPE_OPTIONS,
+  activeChips,
+  hasPriceRange,
+  priceRangeLabel,
+  type PropertyFilters,
+} from "../../lib/filters";
 
-const TYPE_FILTERS = ["Industrial", "Office", "Retail", "Apartment", "Mixed-Use"];
-const STATUS_FILTERS = ["Listed", "Under Contract", "Off Market", "Acquired"];
+interface Props {
+  filters: PropertyFilters;
+  onChange: (next: PropertyFilters) => void;
+}
 
-export default function FilterBar() {
+// Controlled filter bar. Search/sort/map remain disabled ("coming soon") — the
+// listings API has no text-search or sort support yet (NL search is milestone M7).
+export default function FilterBar({ filters, onChange }: Props) {
+  const chips = activeChips(filters);
+
+  // Toggle a single-select dimension off when its active value is reselected.
+  const toggle = (key: "propertyType" | "status", value: string) =>
+    onChange({ ...filters, [key]: filters[key] === value ? undefined : value });
+
   return (
     <div className="mt-6">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Search (placeholder) */}
+        {/* Search (disabled — NL search arrives with the AI milestone) */}
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
             <SearchIcon />
@@ -19,60 +37,255 @@ export default function FilterBar() {
             disabled
             placeholder="Search properties..."
             title="Coming soon"
-            className="w-64 cursor-not-allowed rounded-full border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-500 placeholder:text-slate-400"
+            className="w-56 cursor-not-allowed rounded-full border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-500 placeholder:text-slate-400"
           />
         </div>
 
-        {TYPE_FILTERS.map((f) => (
-          <Pill key={f}>{f}</Pill>
-        ))}
-        {STATUS_FILTERS.map((f) => (
-          <Pill key={f}>{f}</Pill>
+        {TYPE_OPTIONS.map((t) => (
+          <Pill key={t} active={filters.propertyType === t} onClick={() => toggle("propertyType", t)}>
+            {t}
+          </Pill>
         ))}
 
-        <button
-          type="button"
-          disabled
-          title="Coming soon"
-          className="inline-flex cursor-not-allowed items-center gap-1 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-500"
+        {STATUS_OPTIONS.map((s) => (
+          <Pill
+            key={s.value}
+            active={filters.status === s.value}
+            onClick={() => toggle("status", s.value)}
+          >
+            {s.label}
+          </Pill>
+        ))}
+
+        {/* Metro */}
+        <Dropdown
+          label={filters.metroArea ?? "All Markets"}
+          active={!!filters.metroArea}
+          panelClassName="max-h-72 w-56 overflow-y-auto"
         >
-          All Markets
-          <ChevronIcon />
-        </button>
+          {(close) => (
+            <>
+              <MenuItem
+                selected={!filters.metroArea}
+                onClick={() => {
+                  onChange({ ...filters, metroArea: undefined });
+                  close();
+                }}
+              >
+                All Markets
+              </MenuItem>
+              {METRO_OPTIONS.map((m) => (
+                <MenuItem
+                  key={m}
+                  selected={filters.metroArea === m}
+                  onClick={() => {
+                    onChange({ ...filters, metroArea: m });
+                    close();
+                  }}
+                >
+                  {m}
+                </MenuItem>
+              ))}
+            </>
+          )}
+        </Dropdown>
+
+        {/* Price range */}
+        <Dropdown
+          label={priceRangeLabel(filters.minPrice, filters.maxPrice)}
+          active={hasPriceRange(filters)}
+          panelClassName="w-64"
+        >
+          {(close) => (
+            <PriceRangePanel
+              min={filters.minPrice}
+              max={filters.maxPrice}
+              onApply={(min, max) => {
+                onChange({ ...filters, minPrice: min, maxPrice: max });
+                close();
+              }}
+            />
+          )}
+        </Dropdown>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2">
+      {/* Active filters + actions */}
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="flex min-h-[1.75rem] flex-wrap items-center gap-2">
+          {chips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => onChange(chip.clear(filters))}
+              className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-3 py-1 text-xs font-medium text-brand hover:bg-brand/20"
+            >
+              {chip.label}
+              <CloseIcon />
+            </button>
+          ))}
+          {chips.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange({})}
+              className="text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            disabled
+            title="Coming soon"
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-400"
+          >
+            <SortIcon />
+            Sort: Newest
+          </button>
+          <button
+            type="button"
+            disabled
+            title="Coming soon"
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-400"
+          >
+            <MapIcon />
+            Map View
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PriceRangePanel({
+  min,
+  max,
+  onApply,
+}: {
+  min: number | undefined;
+  max: number | undefined;
+  onApply: (min: number | undefined, max: number | undefined) => void;
+}) {
+  // Edited in millions for a friendlier scale (e.g. "1.5" = $1.5M).
+  const toM = (v: number | undefined) => (v != null ? String(v / 1_000_000) : "");
+  const [minM, setMinM] = useState(toM(min));
+  const [maxM, setMaxM] = useState(toM(max));
+
+  // Re-sync when the panel reopens against different applied values.
+  useEffect(() => {
+    setMinM(toM(min));
+    setMaxM(toM(max));
+  }, [min, max]);
+
+  const parse = (s: string): number | undefined => {
+    const n = parseFloat(s);
+    return s.trim() !== "" && !Number.isNaN(n) && n >= 0 ? n * 1_000_000 : undefined;
+  };
+
+  return (
+    <div className="p-2">
+      <p className="px-1 pb-2 text-xs font-medium text-slate-500">Asking price ($M)</p>
+      <div className="flex items-center gap-2">
+        <PriceInput value={minM} placeholder="Min" onChange={setMinM} />
+        <span className="text-slate-400">–</span>
+        <PriceInput value={maxM} placeholder="Max" onChange={setMaxM} />
+      </div>
+      <div className="mt-3 flex items-center justify-between">
         <button
           type="button"
-          disabled
-          title="Coming soon"
-          className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-500"
+          onClick={() => {
+            setMinM("");
+            setMaxM("");
+            onApply(undefined, undefined);
+          }}
+          className="text-xs font-medium text-slate-500 hover:text-slate-700"
         >
-          <SortIcon />
-          Price: High → Low
-          <ChevronIcon />
+          Clear
         </button>
         <button
           type="button"
-          disabled
-          title="Coming soon"
-          className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-500"
+          onClick={() => onApply(parse(minM), parse(maxM))}
+          className="rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover"
         >
-          <MapIcon />
-          Map View
+          Apply
         </button>
       </div>
     </div>
   );
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
+function PriceInput({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative flex-1">
+      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+        $
+      </span>
+      <input
+        type="number"
+        min="0"
+        inputMode="decimal"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-slate-200 py-1.5 pl-5 pr-2 text-sm text-slate-700 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+      />
+    </div>
+  );
+}
+
+function Pill({
+  children,
+  active,
+  onClick,
+}: {
+  children: React.ReactNode;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
     <button
       type="button"
-      disabled
-      title="Coming soon"
-      className="cursor-not-allowed rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-600"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+        active
+          ? "border-brand bg-brand text-white"
+          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MenuItem({
+  children,
+  selected,
+  onClick,
+}: {
+  children: React.ReactNode;
+  selected?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "block w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors",
+        selected ? "bg-brand/10 font-medium text-brand" : "text-slate-700 hover:bg-slate-50",
+      ].join(" ")}
     >
       {children}
     </button>
@@ -87,10 +300,10 @@ function SearchIcon() {
     </svg>
   );
 }
-function ChevronIcon() {
+function CloseIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m6 9 6 6 6-6" />
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   );
 }

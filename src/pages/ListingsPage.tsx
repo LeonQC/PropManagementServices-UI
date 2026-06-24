@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getProperties } from "../api/properties";
+import { EMPTY_FILTERS, type PropertyFilters } from "../lib/filters";
 import FilterBar from "../components/listings/FilterBar";
 import PropertyGrid from "../components/listings/PropertyGrid";
 import Pagination from "../components/listings/Pagination";
@@ -9,10 +10,17 @@ const PAGE_SIZE = 12;
 
 export default function ListingsPage() {
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<PropertyFilters>(EMPTY_FILTERS);
+
+  // Any filter change resets to the first page (the old page may not exist).
+  const handleFiltersChange = (next: PropertyFilters) => {
+    setFilters(next);
+    setPage(1);
+  };
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: ["properties", page],
-    queryFn: ({ signal }) => getProperties(page, PAGE_SIZE, signal),
+    queryKey: ["properties", page, filters],
+    queryFn: ({ signal }) => getProperties(page, PAGE_SIZE, filters, signal),
     placeholderData: keepPreviousData,
   });
 
@@ -40,7 +48,7 @@ export default function ListingsPage() {
         </button>
       </div>
 
-      <FilterBar />
+      <FilterBar filters={filters} onChange={handleFiltersChange} />
 
       <div className="mt-6">
         <PropertyGrid
