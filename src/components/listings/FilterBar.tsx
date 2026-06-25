@@ -2,22 +2,35 @@ import { useEffect, useState } from "react";
 import Dropdown from "./Dropdown";
 import {
   METRO_OPTIONS,
+  SORT_OPTIONS,
   STATUS_OPTIONS,
   TYPE_OPTIONS,
   activeChips,
   hasPriceRange,
   priceRangeLabel,
+  sortLabel,
   type PropertyFilters,
 } from "../../lib/filters";
 
 interface Props {
   filters: PropertyFilters;
   onChange: (next: PropertyFilters) => void;
+  sort: string;
+  onSortChange: (next: string) => void;
+  search: string;
+  onSearchChange: (next: string) => void;
 }
 
-// Controlled filter bar. Search/sort/map remain disabled ("coming soon") — the
-// listings API has no text-search or sort support yet (NL search is milestone M7).
-export default function FilterBar({ filters, onChange }: Props) {
+// Controlled filter bar. Map view stays disabled ("coming soon"); search and
+// sort are now wired to the API (keyword `q` + `sort` params).
+export default function FilterBar({
+  filters,
+  onChange,
+  sort,
+  onSortChange,
+  search,
+  onSearchChange,
+}: Props) {
   const chips = activeChips(filters);
 
   // Toggle a single-select dimension off when its active value is reselected.
@@ -27,18 +40,28 @@ export default function FilterBar({ filters, onChange }: Props) {
   return (
     <div className="mt-6">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Search (disabled — NL search arrives with the AI milestone) */}
+        {/* Keyword search (API `q` param, debounced upstream) */}
         <div className="relative">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
             <SearchIcon />
           </span>
           <input
             type="text"
-            disabled
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search properties..."
-            title="Coming soon"
-            className="w-56 cursor-not-allowed rounded-full border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-500 placeholder:text-slate-400"
+            className="w-56 rounded-full border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <CloseIcon />
+            </button>
+          )}
         </div>
 
         {TYPE_OPTIONS.map((t) => (
@@ -135,15 +158,34 @@ export default function FilterBar({ filters, onChange }: Props) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            disabled
-            title="Coming soon"
-            className="inline-flex cursor-not-allowed items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-400"
+          <Dropdown
+            label={
+              <span className="inline-flex items-center gap-2">
+                <SortIcon />
+                {`Sort: ${sortLabel(sort)}`}
+              </span>
+            }
+            active={sort !== "newest"}
+            align="right"
+            panelClassName="w-52"
           >
-            <SortIcon />
-            Sort: Newest
-          </button>
+            {(close) => (
+              <>
+                {SORT_OPTIONS.map((opt) => (
+                  <MenuItem
+                    key={opt.value}
+                    selected={sort === opt.value}
+                    onClick={() => {
+                      onSortChange(opt.value);
+                      close();
+                    }}
+                  >
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </>
+            )}
+          </Dropdown>
           <button
             type="button"
             disabled

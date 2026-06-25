@@ -56,8 +56,23 @@ export const METRO_OPTIONS = [
   "Tampa Metro",
 ] as const;
 
+// Sort encodes field + direction in one value, matching the API's `sort` param.
+// "newest" is the server default, so the UI omits it from the request.
+export const DEFAULT_SORT = "newest";
+
+export const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "newest", label: "Newest" },
+  { value: "price_desc", label: "Price: High → Low" },
+  { value: "price_asc", label: "Price: Low → High" },
+  { value: "cap_desc", label: "Cap Rate: High → Low" },
+];
+
 export function statusLabel(value: string): string {
   return STATUS_OPTIONS.find((s) => s.value === value)?.label ?? value;
+}
+
+export function sortLabel(value: string): string {
+  return SORT_OPTIONS.find((s) => s.value === value)?.label ?? "Newest";
 }
 
 /** Human label for the price range trigger/chip. */
