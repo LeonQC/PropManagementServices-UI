@@ -1,5 +1,9 @@
-import { apiGet } from "./client";
-import type { PaginatedResponse, PropertyResponse } from "./types";
+import { apiGet, apiPost } from "./client";
+import type {
+  CreatePropertyRequest,
+  PaginatedResponse,
+  PropertyResponse,
+} from "./types";
 import { DEFAULT_SORT, type PropertyFilters } from "../lib/filters";
 
 // GET /listings/v1/properties — paginated. Supports single-value
@@ -30,4 +34,12 @@ export function getProperties(
     `/listings/v1/properties?${params.toString()}`,
     signal
   );
+}
+
+// POST /listings/v1/properties — creates a property, returns the created record.
+export function createProperty(
+  input: CreatePropertyRequest,
+  signal?: AbortSignal
+): Promise<PropertyResponse> {
+  return apiPost<PropertyResponse>("/listings/v1/properties", input, signal);
 }

@@ -6,6 +6,7 @@ import { useDebounce } from "../lib/useDebounce";
 import FilterBar from "../components/listings/FilterBar";
 import PropertyGrid from "../components/listings/PropertyGrid";
 import Pagination from "../components/listings/Pagination";
+import AddPropertyModal from "../components/listings/AddPropertyModal";
 
 const PAGE_SIZE = 12;
 
@@ -14,6 +15,7 @@ export default function ListingsPage() {
   const [filters, setFilters] = useState<PropertyFilters>(EMPTY_FILTERS);
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [search, setSearch] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   // Debounce the keyword so we query once typing settles, not per keystroke.
   const debouncedSearch = useDebounce(search.trim(), 300);
@@ -47,13 +49,15 @@ export default function ListingsPage() {
         </div>
         <button
           type="button"
-          title="Coming soon"
+          onClick={() => setIsAddOpen(true)}
           className="inline-flex shrink-0 items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover"
         >
           <span className="text-base leading-none">+</span>
           Add Property
         </button>
       </div>
+
+      {isAddOpen && <AddPropertyModal onClose={() => setIsAddOpen(false)} />}
 
       <FilterBar
         filters={filters}
