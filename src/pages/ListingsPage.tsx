@@ -1,18 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { getProperties } from "../api/properties";
+import { DEFAULT_SORT, EMPTY_FILTERS, type PropertyFilters } from "../lib/filters";
+import { useDebounce } from "../lib/useDebounce";
 import FilterBar from "../components/listings/FilterBar";
 import PropertyGrid from "../components/listings/PropertyGrid";
 import Pagination from "../components/listings/Pagination";
+import AddPropertyModal from "../components/listings/AddPropertyModal";
 
 const PAGE_SIZE = 12;
 
 export default function ListingsPage() {
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<PropertyFilters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState(DEFAULT_SORT);
+  const [search, setSearch] = useState("");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // Debounce the keyword so we query once typing settles, not per keystroke.
+  const debouncedSearch = useDebounce(search.trim(), 300);
+
+  // Changing filters, sort, or the search term invalidates the current page
+  // (the old page number may not exist in the new result set), so reset to 1.
+  useEffect(() => {
+    setPage(1);
+  }, [filters, sort, debouncedSearch]);
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: ["properties", page],
-    queryFn: ({ signal }) => getProperties(page, PAGE_SIZE, signal),
+    queryKey: ["properties", page, filters, sort, debouncedSearch],
+    queryFn: ({ signal }) =>
+      getProperties(page, PAGE_SIZE, filters, sort, debouncedSearch, signal),
     placeholderData: keepPreviousData,
   });
 
@@ -32,7 +49,7 @@ export default function ListingsPage() {
         </div>
         <button
           type="button"
-          title="Coming soon"
+          onClick={() => setIsAddOpen(true)}
           className="inline-flex shrink-0 items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover"
         >
           <span className="text-base leading-none">+</span>
@@ -40,7 +57,16 @@ export default function ListingsPage() {
         </button>
       </div>
 
-      <FilterBar />
+      {isAddOpen && <AddPropertyModal onClose={() => setIsAddOpen(false)} />}
+
+      <FilterBar
+        filters={filters}
+        onChange={setFilters}
+        sort={sort}
+        onSortChange={setSort}
+        search={search}
+        onSearchChange={setSearch}
+      />
 
       <div className="mt-6">
         <PropertyGrid
