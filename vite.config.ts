@@ -2,16 +2,25 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// The frontend calls the listings-service via relative paths (e.g.
-// /listings/v1/properties). In dev, Vite proxies those to the API container,
-// which sidesteps CORS and mirrors the nginx /api reverse-proxy used in prod.
+// The frontend calls the backend services via relative paths (e.g.
+// /listings/v1/properties, /auth/v1/login). In dev, Vite proxies each prefix to
+// its API container, which sidesteps CORS and mirrors the nginx /api
+// reverse-proxy used in prod.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
     proxy: {
-      "/listings": {
+      // Scope each proxy to the service's /v1 API paths only. Anchoring to
+      // `/v1` keeps SPA routes that share a prefix (e.g. the "/listings" page)
+      // from being hijacked by the proxy on a full-page load — those fall
+      // through to Vite's SPA index instead.
+      "^/listings/v1": {
         target: "http://localhost:5100",
+        changeOrigin: true,
+      },
+      "^/auth/v1": {
+        target: "http://localhost:5300",
         changeOrigin: true,
       },
     },
