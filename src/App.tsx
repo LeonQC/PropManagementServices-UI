@@ -3,6 +3,7 @@ import AppLayout from "./components/layout/AppLayout";
 import ListingsPage from "./pages/ListingsPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import LoginPage from "./pages/LoginPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import RequireAuth from "./auth/RequireAuth";
 
 export default function App() {
@@ -21,7 +22,7 @@ export default function App() {
           <Route path="/acquisitions" element={<ComingSoonPage title="Acquisitions" />} />
           <Route path="/map" element={<ComingSoonPage title="Map" />} />
           <Route path="/reports" element={<ComingSoonPage title="Reports" />} />
-          <Route path="/admin" element={<ComingSoonPage title="Admin" />} />
+          <Route path="/admin" element={<AdminUsersPage />} />
           <Route path="*" element={<ComingSoonPage title="Not found" />} />
         </Route>
       </Route>

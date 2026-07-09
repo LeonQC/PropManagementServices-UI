@@ -164,3 +164,21 @@ export async function authPost<T>(
   const json = await res.json();
   return json.data as T;
 }
+
+export async function authPut<T>(
+  path: string,
+  body: unknown,
+  opts?: RequestOptions
+): Promise<T> {
+  const res = await request(path, { method: "PUT", body, ...opts });
+  if (!res.ok) throw await toError(res);
+  const json = await res.json();
+  return json.data as T;
+}
+
+export async function authDelete<T>(path: string, opts?: RequestOptions): Promise<T> {
+  const res = await request(path, { method: "DELETE", ...opts });
+  if (!res.ok) throw await toError(res);
+  const json = await res.json();
+  return json.data as T;
+}
