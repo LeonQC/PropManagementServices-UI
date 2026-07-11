@@ -37,6 +37,14 @@ export function formatAddress(
   return [street, cityState].filter(Boolean).join(" · ");
 }
 
+/** ISO timestamp or date-only string -> "Mar 14, 2026" (null -> "—"). */
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 function trim(n: number): string {
   // One decimal, but drop a trailing ".0" (67.0 -> "67", 67.5 -> "67.5").
   return n.toFixed(1).replace(/\.0$/, "");

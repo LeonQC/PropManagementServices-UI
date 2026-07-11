@@ -27,6 +27,18 @@ export interface CreateUserInput {
   role: string;
 }
 
+// Mirrors DirectoryEntryResponse — the minimal id→name mapping any
+// authenticated user may read (used to render deal owner/assignee names).
+export interface DirectoryEntry {
+  id: string;
+  fullName: string | null;
+}
+
+// GET /auth/v1/users/directory — id + name for all active users (any role).
+export function getUserDirectory(signal?: AbortSignal): Promise<DirectoryEntry[]> {
+  return authGet<DirectoryEntry[]>("/auth/v1/users/directory", { signal });
+}
+
 // GET /auth/v1/users — list all users (Admin / Managing Director).
 export function listUsers(signal?: AbortSignal): Promise<AdminUser[]> {
   return authGet<AdminUser[]>("/auth/v1/users", { signal });
