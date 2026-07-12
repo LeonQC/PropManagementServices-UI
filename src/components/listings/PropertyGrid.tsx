@@ -7,9 +7,17 @@ interface Props {
   isError: boolean;
   pageSize: number;
   onRetry: () => void;
+  onStartAcquisition: (property: PropertyResponse) => void;
 }
 
-export default function PropertyGrid({ properties, isLoading, isError, pageSize, onRetry }: Props) {
+export default function PropertyGrid({
+  properties,
+  isLoading,
+  isError,
+  pageSize,
+  onRetry,
+  onStartAcquisition,
+}: Props) {
   if (isError) {
     return (
       <div className="grid place-items-center rounded-xl border border-slate-200 bg-white py-16 text-center">
@@ -46,7 +54,7 @@ export default function PropertyGrid({ properties, isLoading, isError, pageSize,
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {properties.map((p) => (
-        <PropertyCard key={p.id} property={p} />
+        <PropertyCard key={p.id} property={p} onStartAcquisition={onStartAcquisition} />
       ))}
     </div>
   );

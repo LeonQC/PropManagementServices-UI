@@ -7,6 +7,8 @@ import FilterBar from "../components/listings/FilterBar";
 import PropertyGrid from "../components/listings/PropertyGrid";
 import Pagination from "../components/listings/Pagination";
 import AddPropertyModal from "../components/listings/AddPropertyModal";
+import CreateDealModal from "../components/acquisitions/CreateDealModal";
+import type { PropertyResponse } from "../api/types";
 
 const PAGE_SIZE = 12;
 
@@ -16,6 +18,8 @@ export default function ListingsPage() {
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
+  // "Start acquisition" opens the deal modal preloaded with this property.
+  const [dealProperty, setDealProperty] = useState<PropertyResponse | null>(null);
 
   // Debounce the keyword so we query once typing settles, not per keystroke.
   const debouncedSearch = useDebounce(search.trim(), 300);
@@ -58,6 +62,9 @@ export default function ListingsPage() {
       </div>
 
       {isAddOpen && <AddPropertyModal onClose={() => setIsAddOpen(false)} />}
+      {dealProperty && (
+        <CreateDealModal property={dealProperty} onClose={() => setDealProperty(null)} />
+      )}
 
       <FilterBar
         filters={filters}
@@ -75,6 +82,7 @@ export default function ListingsPage() {
           isError={isError}
           pageSize={PAGE_SIZE}
           onRetry={() => refetch()}
+          onStartAcquisition={setDealProperty}
         />
       </div>
 

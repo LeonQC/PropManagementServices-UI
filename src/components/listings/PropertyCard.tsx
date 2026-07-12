@@ -3,9 +3,16 @@ import type { PropertyResponse } from "../../api/types";
 import { formatAddress, formatMoney, formatPercent, formatRate, formatSqft } from "../../lib/format";
 import { statusMeta, typeBadgeClasses } from "../../lib/status";
 
-export default function PropertyCard({ property }: { property: PropertyResponse }) {
+interface Props {
+  property: PropertyResponse;
+  onStartAcquisition: (property: PropertyResponse) => void;
+}
+
+export default function PropertyCard({ property, onStartAcquisition }: Props) {
   const status = statusMeta(property.status);
   const addr = property.address;
+  // Already in the pipeline (or closed) — no new deal from here.
+  const canStart = property.status === "listed";
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -34,8 +41,10 @@ export default function PropertyCard({ property }: { property: PropertyResponse 
           </dl>
           <button
             type="button"
-            title="Coming soon"
-            className="shrink-0 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-100"
+            disabled={!canStart}
+            title={canStart ? "Create a deal from this listing" : "Only listed properties can start a deal"}
+            onClick={() => onStartAcquisition(property)}
+            className="shrink-0 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Start acquisition
           </button>
