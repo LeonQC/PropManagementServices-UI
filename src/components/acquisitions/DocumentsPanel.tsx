@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createDealDocument, getDealDocuments } from "../../api/deals";
+import {
+  confirmUpload,
+  createUploadUrl,
+  documentIdFromStorageUrl,
+  getDownloadUrl,
+  putFileToStorage,
+  storageUrlFor,
+} from "../../api/documents";
 import { formatDate } from "../../lib/format";
 import { useUserDirectory } from "../../lib/useUserDirectory";
 
@@ -18,14 +26,15 @@ const DOC_TYPES = [
   "Other",
 ];
 
-// Document metadata records with per-document AI summary (design doc §5.3).
-// Real file upload arrives with the documents-service; for now records point
-// at externally-stored files.
+// Real file upload via documents-service (design doc §2.4). The browser
+// orchestrates the whole flow — presigned upload-url → PUT to storage →
+// confirm → link the record to the deal in deals-service.
 export default function DocumentsPanel({ dealId }: Props) {
   const queryClient = useQueryClient();
   const { nameOf } = useUserDirectory();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [fileName, setFileName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState(DOC_TYPES[0]);
 
   const { data: documents } = useQuery({
@@ -33,12 +42,37 @@ export default function DocumentsPanel({ dealId }: Props) {
     queryFn: ({ signal }) => getDealDocuments(dealId, signal),
   });
 
-  const add = useMutation({
-    mutationFn: () => createDealDocument(dealId, { fileName, fileType }),
+  const upload = useMutation({
+    mutationFn: async (selected: File) => {
+      const presigned = await createUploadUrl({
+        fileName: selected.name,
+        contentType: selected.type || "application/octet-stream",
+        sizeBytes: selected.size,
+      });
+      await putFileToStorage(presigned.uploadUrl, selected);
+      await confirmUpload(presigned.documentId);
+      // Deals-service owns the deal↔document link (and publishes the
+      // deal.document_uploaded event that triggers text extraction).
+      return createDealDocument(dealId, {
+        fileName: selected.name,
+        fileType,
+        storageUrl: storageUrlFor(presigned.documentId),
+      });
+    },
     onSuccess: () => {
-      setFileName("");
+      setFile(null);
       setIsAdding(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       void queryClient.invalidateQueries({ queryKey: ["deal", dealId, "documents"] });
+    },
+  });
+
+  const download = useMutation({
+    mutationFn: async (documentId: string) => {
+      const { downloadUrl } = await getDownloadUrl(documentId);
+      // Presigned URL, 15-min expiry — hand it to the browser as a plain
+      // navigation; content-disposition makes it a file download.
+      window.open(downloadUrl, "_blank", "noopener");
     },
   });
 
@@ -60,15 +94,14 @@ export default function DocumentsPanel({ dealId }: Props) {
           className="mt-3 space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (fileName.trim()) add.mutate();
+            if (file && !upload.isPending) upload.mutate(file);
           }}
         >
           <input
-            autoFocus
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
-            placeholder="File name, e.g. Rent Roll Q3.xlsx"
-            className="block w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-brand focus:outline-none"
+            ref={fileInputRef}
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
           />
           <div className="flex gap-2">
             <select
@@ -82,32 +115,52 @@ export default function DocumentsPanel({ dealId }: Props) {
             </select>
             <button
               type="submit"
-              disabled={!fileName.trim() || add.isPending}
+              disabled={!file || upload.isPending}
               className="rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-hover disabled:opacity-50"
             >
-              Add
+              {upload.isPending ? "Uploading…" : "Upload"}
             </button>
           </div>
+          {upload.isError && (
+            <p className="text-xs text-red-600">
+              Upload failed: {upload.error instanceof Error ? upload.error.message : "unknown error"}
+            </p>
+          )}
         </form>
       )}
 
       <ul className="mt-3 space-y-2.5">
-        {(documents ?? []).map((doc) => (
-          <li key={doc.id} className="flex gap-2.5">
-            <FileIcon />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-slate-700">{doc.fileName}</p>
-              <p className="text-xs text-slate-400">
-                {doc.fileType} · {nameOf(doc.uploadedById)} · {formatDate(doc.uploadedAt)}
-              </p>
-              {doc.aiSummary && (
-                <p className="mt-1 rounded-md bg-violet-50 px-2 py-1 text-xs text-violet-800">
-                  <span className="font-semibold">AI:</span> {doc.aiSummary}
+        {(documents ?? []).map((doc) => {
+          const documentId = documentIdFromStorageUrl(doc.storageUrl);
+          return (
+            <li key={doc.id} className="flex gap-2.5">
+              <FileIcon />
+              <div className="min-w-0">
+                {documentId ? (
+                  <button
+                    type="button"
+                    onClick={() => download.mutate(documentId)}
+                    className="block max-w-full truncate text-sm font-medium text-brand hover:underline"
+                    title="Download"
+                  >
+                    {doc.fileName}
+                  </button>
+                ) : (
+                  // Legacy metadata-only record — no file behind it.
+                  <p className="truncate text-sm font-medium text-slate-700">{doc.fileName}</p>
+                )}
+                <p className="text-xs text-slate-400">
+                  {doc.fileType} · {nameOf(doc.uploadedById)} · {formatDate(doc.uploadedAt)}
                 </p>
-              )}
-            </div>
-          </li>
-        ))}
+                {doc.aiSummary && (
+                  <p className="mt-1 rounded-md bg-violet-50 px-2 py-1 text-xs text-violet-800">
+                    <span className="font-semibold">AI:</span> {doc.aiSummary}
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
         {documents && documents.length === 0 && (
           <li className="text-sm text-slate-400">No documents yet.</li>
         )}
