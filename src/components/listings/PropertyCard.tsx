@@ -26,6 +26,12 @@ export default function PropertyCard({ property, onStartAcquisition }: Props) {
           {formatAddress(addr?.street, addr?.city, addr?.state) || "—"}
         </p>
 
+        {property.descriptionText?.trim() && (
+          <p className="mt-2 line-clamp-2 text-sm text-slate-500">
+            {property.descriptionText}
+          </p>
+        )}
+
         <div className="mt-3 flex items-center gap-2">
           <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${typeBadgeClasses(property.propertyType)}`}>
             {property.propertyType}
