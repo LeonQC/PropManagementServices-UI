@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import ListingsPage from "./pages/ListingsPage";
+import PropertyDetailPage from "./pages/PropertyDetailPage";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import LoginPage from "./pages/LoginPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
@@ -19,6 +20,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/listings" replace />} />
           <Route path="/listings" element={<ListingsPage />} />
+          <Route path="/listings/:propertyId" element={<PropertyDetailPage />} />
           {/* Destinations whose backends don't exist yet. */}
           <Route path="/dashboard" element={<ComingSoonPage title="Dashboard" />} />
           <Route path="/acquisitions" element={<AcquisitionsPage />} />

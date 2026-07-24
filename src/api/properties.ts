@@ -36,6 +36,17 @@ export function getProperties(
   );
 }
 
+// GET /listings/v1/properties/{id} — a single property (404s when not found).
+export function getProperty(
+  id: string,
+  signal?: AbortSignal
+): Promise<PropertyResponse> {
+  return apiGet<PropertyResponse>(
+    `/listings/v1/properties/${encodeURIComponent(id)}`,
+    signal
+  );
+}
+
 // POST /listings/v1/properties — creates a property, returns the created record.
 export function createProperty(
   input: CreatePropertyRequest,
