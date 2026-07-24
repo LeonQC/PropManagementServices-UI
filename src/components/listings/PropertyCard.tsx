@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { PropertyResponse } from "../../api/types";
 import { formatAddress, formatMoney, formatPercent, formatRate, formatSqft } from "../../lib/format";
 import { statusMeta, typeBadgeClasses } from "../../lib/status";
@@ -16,18 +17,22 @@ export default function PropertyCard({ property, onStartAcquisition }: Props) {
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      <CardPhoto id={property.id} statusLabel={status.label} statusDot={status.dot} statusText={status.text} />
+      <Link to={`/listings/${property.id}`} aria-label={property.title}>
+        <CardPhoto id={property.id} statusLabel={status.label} statusDot={status.dot} statusText={status.text} />
+      </Link>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="truncate text-base font-semibold text-slate-900" title={property.title}>
-          {property.title}
-        </h3>
+        <Link to={`/listings/${property.id}`} className="block">
+          <h3 className="truncate text-base font-semibold text-slate-900 hover:text-brand" title={property.title}>
+            {property.title}
+          </h3>
+        </Link>
         <p className="mt-0.5 truncate text-sm text-slate-500">
           {formatAddress(addr?.street, addr?.city, addr?.state) || "—"}
         </p>
 
         {property.descriptionText?.trim() && (
-          <p className="mt-2 line-clamp-2 text-sm text-slate-500">
+          <p className="mt-2 line-clamp-2 text-sm text-slate-600">
             {property.descriptionText}
           </p>
         )}
