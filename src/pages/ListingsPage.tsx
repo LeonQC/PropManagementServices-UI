@@ -30,6 +30,17 @@ export default function ListingsPage() {
     setPage(1);
   }, [filters, sort, debouncedSearch]);
 
+  // Relevance ranking only makes sense while searching. Auto-switch to it when a
+  // keyword appears and back to Newest when it's cleared — but never override an
+  // explicit price/cap choice the user made.
+  useEffect(() => {
+    setSort((s) => {
+      if (debouncedSearch && s === "newest") return "relevance";
+      if (!debouncedSearch && s === "relevance") return "newest";
+      return s;
+    });
+  }, [debouncedSearch]);
+
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["properties", page, filters, sort, debouncedSearch],
     queryFn: ({ signal }) =>
