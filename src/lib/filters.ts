@@ -61,6 +61,9 @@ export const METRO_OPTIONS = [
 export const DEFAULT_SORT = "newest";
 
 export const SORT_OPTIONS: { value: string; label: string }[] = [
+  // "relevance" ranks by full-text match score; it only applies when a keyword is
+  // present, so ListingsPage auto-selects it while searching and reverts to "newest".
+  { value: "relevance", label: "Relevance" },
   { value: "newest", label: "Newest" },
   { value: "price_desc", label: "Price: High → Low" },
   { value: "price_asc", label: "Price: Low → High" },
