@@ -104,7 +104,6 @@ export interface CreateDealInput {
 export interface UpdateDealInput {
   name?: string | null;
   priority?: string | null;
-  ownerId?: string | null;
   offerPrice?: number | null;
   projectedCapRate?: number | null;
   targetIrr?: number | null;
@@ -154,6 +153,11 @@ export function killDeal(
   expectedCurrentStage?: string
 ): Promise<DealResponse> {
   return authPost(`/deals/v1/deals/${id}/kill`, { reason, expectedCurrentStage });
+}
+
+/** Admin / Managing Director only (403 otherwise). */
+export function transferDealOwner(id: string, newOwnerId: string): Promise<DealResponse> {
+  return authPost(`/deals/v1/deals/${id}/transfer-owner`, { newOwnerId });
 }
 
 export function getDealHistory(id: string, signal?: AbortSignal): Promise<StageHistoryResponse[]> {

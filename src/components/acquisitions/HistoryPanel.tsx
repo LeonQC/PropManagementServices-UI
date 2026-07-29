@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getDealHistory } from "../../api/deals";
-import { deadReasonLabel, stageMeta } from "../../lib/dealStages";
+import { deadReasonLabel, parseOwnerTransfer, stageMeta } from "../../lib/dealStages";
 import { formatDate } from "../../lib/format";
 import { useUserDirectory } from "../../lib/useUserDirectory";
 
@@ -22,6 +22,23 @@ export default function HistoryPanel({ dealId }: Props) {
       <ul className="mt-3 space-y-3">
         {(history ?? []).map((h) => {
           const to = stageMeta(h.toStage);
+          const transfer = parseOwnerTransfer(h.reason);
+          if (transfer) {
+            return (
+              <li key={h.id} className="flex gap-2.5">
+                <span className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full bg-slate-400" />
+                <div>
+                  <p className="text-sm text-slate-700">
+                    Ownership transferred: {nameOf(transfer.fromId)} →{" "}
+                    <span className="font-medium">{nameOf(transfer.toId)}</span>
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {formatDate(h.changedAt)} · {nameOf(h.changedById)}
+                  </p>
+                </div>
+              </li>
+            );
+          }
           return (
             <li key={h.id} className="flex gap-2.5">
               <span className={`mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full ${to.dot}`} />

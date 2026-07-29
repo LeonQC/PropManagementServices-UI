@@ -9,7 +9,8 @@ interface Props {
   deals: DealResponse[];
   /** True while a drag is active and this column is the dragged deal's next stage. */
   isDropTarget: boolean;
-  canKill: boolean;
+  /** Per-deal: kill is owner-gated, so cards in one column can differ. */
+  canKillDeal: (deal: DealResponse) => boolean;
   onDropDeal: () => void;
   onAdvance: (deal: DealResponse) => void;
   onKill: (deal: DealResponse) => void;
@@ -21,7 +22,7 @@ export default function StageColumn({
   stage,
   deals,
   isDropTarget,
-  canKill,
+  canKillDeal,
   onDropDeal,
   onAdvance,
   onKill,
@@ -74,7 +75,7 @@ export default function StageColumn({
           <DealCard
             key={deal.id}
             deal={deal}
-            canKill={canKill}
+            canKill={canKillDeal(deal)}
             onAdvance={onAdvance}
             onKill={onKill}
             onDragStart={onDragStart}
