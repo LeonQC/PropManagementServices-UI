@@ -64,6 +64,18 @@ export function deadReasonLabel(value: string | null | undefined): string {
   return DEAD_REASONS.find((r) => r.value === value)?.label ?? value ?? "—";
 }
 
+// Mirrors DealsService.Business.Domain.OwnershipTransfer: ownership transfers are
+// same-stage history rows whose reason carries "OWNER_TRANSFER:{fromId}:{toId}".
+const OWNER_TRANSFER_PREFIX = "OWNER_TRANSFER:";
+
+export function parseOwnerTransfer(
+  reason: string | null | undefined
+): { fromId: string; toId: string } | null {
+  if (!reason?.startsWith(OWNER_TRANSFER_PREFIX)) return null;
+  const [fromId, toId] = reason.slice(OWNER_TRANSFER_PREFIX.length).split(":");
+  return fromId && toId ? { fromId, toId } : null;
+}
+
 // Mirrors DealsService.Business.Domain.DealPriorities.
 export const PRIORITIES = ["Low", "Medium", "High"] as const;
 export type DealPriority = (typeof PRIORITIES)[number];

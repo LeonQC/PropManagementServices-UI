@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import { advanceDeal, getDeal, killDeal, type DealResponse } from "../api/deals";
+import { advanceDeal, getDeal, killDeal, transferDealOwner, type DealResponse } from "../api/deals";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { deadReasonLabel, isTerminal, nextStage, priorityBadgeClasses, stageMeta, ACTIVE_SEQUENCE } from "../lib/dealStages";
 import { formatDate, formatMoney } from "../lib/format";
 import { typeBadgeClasses } from "../lib/status";
-import { useUserDirectory } from "../lib/useUserDirectory";
 import DealListSidebar from "../components/acquisitions/DealListSidebar";
 import TasksPanel from "../components/acquisitions/TasksPanel";
 import CommentsFeed from "../components/acquisitions/CommentsFeed";
@@ -16,6 +15,8 @@ import DocumentsPanel from "../components/acquisitions/DocumentsPanel";
 import AiScoreCard from "../components/acquisitions/AiScoreCard";
 import HistoryPanel from "../components/acquisitions/HistoryPanel";
 import KillDealModal from "../components/acquisitions/KillDealModal";
+import OwnerPanel from "../components/acquisitions/OwnerPanel";
+import TransferOwnershipModal from "../components/acquisitions/TransferOwnershipModal";
 
 // The deal detail panel (design doc §3.3/§5.3): sidebar deal list, header with
 // stage progress + actions, tasks/comments left, financials/docs/AI/history right.
@@ -23,10 +24,12 @@ export default function DealDetailPage() {
   const { dealId = "" } = useParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { nameOf } = useUserDirectory();
-  const canKill = user?.role !== undefined && user.role !== "Analyst";
+  // Authorization matrix: transferring ownership (and bypassing the kill owner
+  // check) requires Admin or Managing Director.
+  const canTransfer = user?.role === "Admin" || user?.role === "Managing Director";
 
   const [isKillOpen, setIsKillOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
   const { data: deal, isLoading, isError } = useQuery({
@@ -66,6 +69,17 @@ export default function DealDetailPage() {
     onError: (err) => onMutationError(err, "Could not kill the deal."),
   });
 
+  const transfer = useMutation({
+    mutationFn: ({ d, newOwnerId }: { d: DealResponse; newOwnerId: string }) =>
+      transferDealOwner(d.id, newOwnerId),
+    onSuccess: () => {
+      setBanner(null);
+      setIsTransferOpen(false);
+      invalidate();
+    },
+    onError: (err) => onMutationError(err, "Could not transfer ownership."),
+  });
+
   if (isLoading) {
     return <div className="mt-10 animate-pulse text-center text-sm text-slate-400">Loading deal…</div>;
   }
@@ -75,6 +89,9 @@ export default function DealDetailPage() {
 
   const meta = stageMeta(deal.stage);
   const next = nextStage(deal.stage);
+  // Kill requires Associate+ (role gate) and being the owner unless Admin/MD.
+  const canKill =
+    user !== null && user.role !== "Analyst" && (user.id === deal.ownerId || canTransfer);
 
   return (
     <div className="flex gap-6">
@@ -99,8 +116,7 @@ export default function DealDetailPage() {
               </div>
               <p className="mt-1 text-sm text-slate-500">
                 {deal.propertyName}
-                {deal.metroArea ? ` · ${deal.metroArea}` : ""} · Owner{" "}
-                <span className="font-medium text-slate-700">{nameOf(deal.ownerId)}</span>
+                {deal.metroArea ? ` · ${deal.metroArea}` : ""}
                 {deal.projectedCloseDate && ` · Closing ${formatDate(deal.projectedCloseDate)}`}
                 {deal.offerPrice != null && ` · ${formatMoney(deal.offerPrice)}`}
               </p>
@@ -165,6 +181,7 @@ export default function DealDetailPage() {
             <CommentsFeed dealId={deal.id} />
           </div>
           <div className="space-y-5 xl:col-span-2">
+            <OwnerPanel deal={deal} canTransfer={canTransfer} onTransfer={() => setIsTransferOpen(true)} />
             <FinancialsPanel deal={deal} />
             <AiScoreCard deal={deal} />
             <DocumentsPanel dealId={deal.id} />
@@ -180,6 +197,16 @@ export default function DealDetailPage() {
           error={null}
           onConfirm={(reason) => kill.mutate({ d: deal, reason })}
           onClose={() => setIsKillOpen(false)}
+        />
+      )}
+
+      {isTransferOpen && (
+        <TransferOwnershipModal
+          deal={deal}
+          isPending={transfer.isPending}
+          error={null}
+          onConfirm={(newOwnerId) => transfer.mutate({ d: deal, newOwnerId })}
+          onClose={() => setIsTransferOpen(false)}
         />
       )}
     </div>

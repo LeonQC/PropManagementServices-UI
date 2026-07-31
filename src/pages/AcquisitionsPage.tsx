@@ -14,8 +14,11 @@ import CreateDealModal from "../components/acquisitions/CreateDealModal";
 export default function AcquisitionsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  // Authorization matrix §5.3: killing a deal requires Associate or above.
-  const canKill = user?.role !== undefined && user.role !== "Analyst";
+  // Authorization matrix §5.3: killing a deal requires Associate or above AND
+  // owning the deal, unless the caller is Admin/Managing Director.
+  const isElevated = user?.role === "Admin" || user?.role === "Managing Director";
+  const canKillDeal = (deal: DealResponse) =>
+    user !== null && user.role !== "Analyst" && (deal.ownerId === user.id || isElevated);
 
   const [dragging, setDragging] = useState<DealResponse | null>(null);
   const [killTarget, setKillTarget] = useState<DealResponse | null>(null);
@@ -121,7 +124,7 @@ export default function AcquisitionsPage() {
               stage={stage}
               deals={byStage.get(stage) ?? []}
               isDropTarget={dragging !== null && nextStage(dragging.stage) === stage}
-              canKill={canKill}
+              canKillDeal={canKillDeal}
               onDropDeal={() => {
                 if (dragging) advance.mutate(dragging);
                 setDragging(null);
