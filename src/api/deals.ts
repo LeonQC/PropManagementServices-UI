@@ -4,6 +4,15 @@
 import { authGet, authPost, authPut } from "./client";
 import type { PaginatedResponse } from "./types";
 
+/** A deterministic health signal on a deal (design doc §6.6), computed server-side on
+ *  every read — never stored. `riskFlags` stays reserved for the later AI judgment
+ *  flags. See HEALTH_FLAG_LABELS in lib/dealHealth.ts for the known types. */
+export interface HealthFlagResponse {
+  type: string;
+  severity: "warning" | "critical";
+  message: string;
+}
+
 export interface DealResponse {
   id: string;
   name: string;
@@ -11,6 +20,9 @@ export interface DealResponse {
   propertyName: string;
   propertyType: string | null;
   metroArea: string | null;
+  /** Snapshotted from the property at deal creation. Fractions: 0.936 is 93.6%. */
+  occupancyRate: number | null;
+  marketCapRateBenchmark: number | null;
   stage: string;
   priority: string;
   ownerId: string;
@@ -29,6 +41,7 @@ export interface DealResponse {
   taskCount: number;
   doneTaskCount: number;
   hasOverdueTasks: boolean;
+  healthFlags: HealthFlagResponse[];
 }
 
 export interface StageHistoryResponse {
@@ -92,6 +105,8 @@ export interface CreateDealInput {
   propertyName: string;
   propertyType?: string | null;
   metroArea?: string | null;
+  occupancyRate?: number | null;
+  marketCapRateBenchmark?: number | null;
   name?: string | null;
   priority?: string | null;
   offerPrice?: number | null;
@@ -111,10 +126,24 @@ export interface UpdateDealInput {
   projectedCloseDate?: string | null;
 }
 
+/** Deal list filters — all optional, AND'd server-side. Dates are "yyyy-MM-dd";
+ *  cap rates are fractions (0.065 = 6.5%). `q` is full-text over the deal name and
+ *  its snapshotted property name; `staleDays` the minimum days in the current stage. */
 export interface DealFilters {
   stage?: string;
   ownerId?: string;
   priority?: string;
+  propertyType?: string;
+  metroArea?: string;
+  closeDateBefore?: string;
+  closeDateAfter?: string;
+  offerPriceMin?: number;
+  offerPriceMax?: number;
+  capRateMin?: number;
+  capRateMax?: number;
+  hasOverdueTasks?: boolean;
+  staleDays?: number;
+  q?: string;
 }
 
 export function getDeals(
@@ -124,9 +153,11 @@ export function getDeals(
   signal?: AbortSignal
 ): Promise<PaginatedResponse<DealResponse>> {
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-  if (filters.stage) params.set("stage", filters.stage);
-  if (filters.ownerId) params.set("ownerId", filters.ownerId);
-  if (filters.priority) params.set("priority", filters.priority);
+  // Skip null/undefined/"" but keep hasOverdueTasks=false, which is a real filter.
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === null || value === "") continue;
+    params.set(key, String(value));
+  }
   return authGet(`/deals/v1/deals?${params}`, { signal });
 }
 

@@ -75,6 +75,10 @@ export default function CreateDealModal({ property, onClose }: Props) {
       propertyName: selected.title,
       propertyType: selected.propertyType,
       metroArea: selected.address?.metroArea ?? null,
+      // Snapshotted alongside the fields above so the deal's health flags can be
+      // evaluated without a cross-service read (design doc §6.6).
+      occupancyRate: selected.occupancyRate,
+      marketCapRateBenchmark: selected.marketCapRateBenchmark,
       name: name.trim() || null,
       priority,
       offerPrice: offerPrice ? Number(offerPrice) : null,

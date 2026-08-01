@@ -1,14 +1,16 @@
-import type { DealResponse } from "../../api/deals";
+import type { DealResponse, HealthFlagResponse } from "../../api/deals";
+import { flagMeta, severityBadgeClasses, sortBySeverity } from "../../lib/dealHealth";
 
 interface Props {
   deal: DealResponse;
 }
 
-// AI score + rationale + risk flags (design doc §5.3). The columns exist in the
-// schema today; the ai-service that populates them is a later milestone, so the
-// empty state is the common case for now.
+// AI score + rationale + the AI-derived judgment flags (design doc §6.3/§6.6). The
+// columns exist in the schema today; the ai-service that populates them is a later
+// milestone, so the empty state is the common case for now. The deterministic
+// health flags are a separate, always-populated set — see DealHealthPanel.
 export default function AiScoreCard({ deal }: Props) {
-  const flags = parseFlags(deal.riskFlags);
+  const flags = sortBySeverity(parseFlags(deal.riskFlags));
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4">
@@ -31,10 +33,11 @@ export default function AiScoreCard({ deal }: Props) {
             <div className="mt-3 flex flex-wrap gap-1.5">
               {flags.map((flag) => (
                 <span
-                  key={flag}
-                  className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700"
+                  key={flag.type}
+                  title={flag.message}
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${severityBadgeClasses(flag.severity)}`}
                 >
-                  {flag}
+                  {flagMeta(flag.type).label}
                 </span>
               ))}
             </div>
@@ -45,11 +48,22 @@ export default function AiScoreCard({ deal }: Props) {
   );
 }
 
-function parseFlags(riskFlags: string | null): string[] {
+// riskFlags is a JSON string column written by the (not yet built) ai-service, in
+// the design doc's [{type, severity, message}] shape. Anything that doesn't parse
+// to that shape is dropped rather than rendered — a half-written model response
+// should not put a broken badge on the page.
+function parseFlags(riskFlags: string | null): HealthFlagResponse[] {
   if (!riskFlags) return [];
   try {
-    const parsed = JSON.parse(riskFlags);
-    return Array.isArray(parsed) ? parsed.map(String) : [];
+    const parsed: unknown = JSON.parse(riskFlags);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (f): f is HealthFlagResponse =>
+        typeof f === "object" &&
+        f !== null &&
+        typeof (f as HealthFlagResponse).type === "string" &&
+        typeof (f as HealthFlagResponse).message === "string"
+    );
   } catch {
     return [];
   }
