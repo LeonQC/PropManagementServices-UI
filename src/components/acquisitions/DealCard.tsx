@@ -4,6 +4,7 @@ import type { DealResponse } from "../../api/deals";
 import { formatMoney } from "../../lib/format";
 import { typeBadgeClasses } from "../../lib/status";
 import { nextStage, priorityBadgeClasses, stageMeta } from "../../lib/dealStages";
+import { flagMeta, severityBadgeClasses, sortBySeverity } from "../../lib/dealHealth";
 import { useUserDirectory } from "../../lib/useUserDirectory";
 
 interface Props {
@@ -20,6 +21,11 @@ export default function DealCard({ deal, canKill, onAdvance, onKill, onDragStart
   const { nameOf, initialsOf } = useUserDirectory();
   const next = nextStage(deal.stage);
   const draggable = next !== null;
+  // Health flags (design doc §6.6). A card is small: show the two most severe as
+  // badges and roll the rest into a "+N", with the full text in the title tooltip.
+  const flags = sortBySeverity(deal.healthFlags);
+  const shownFlags = flags.slice(0, 2);
+  const hiddenFlags = flags.slice(2);
 
   return (
     <div
@@ -64,12 +70,36 @@ export default function DealCard({ deal, canKill, onAdvance, onKill, onDragStart
         </span>
       </div>
 
+      {flags.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {shownFlags.map((flag) => (
+            <span
+              key={flag.type}
+              title={flag.message}
+              className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${severityBadgeClasses(flag.severity)}`}
+            >
+              <span aria-hidden="true" className="mr-1">
+                {flagMeta(flag.type).icon}
+              </span>
+              {flagMeta(flag.type).label}
+            </span>
+          ))}
+          {hiddenFlags.length > 0 && (
+            <span
+              title={hiddenFlags.map((f) => f.message).join("\n")}
+              className="rounded px-1.5 py-0.5 text-[11px] font-medium text-slate-500"
+            >
+              +{hiddenFlags.length}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500">
         <span className="font-medium text-slate-700">{formatMoney(deal.offerPrice)}</span>
         <span className="flex items-center gap-2">
-          {deal.hasOverdueTasks && (
-            <span title="Has overdue tasks" className="inline-block h-2 w-2 rounded-full bg-red-500" />
-          )}
+          {/* The old bare red overdue dot is gone — overdue_tasks is one of the
+              health flags above now, with a message instead of a mystery dot. */}
           <span title="Tasks complete">
             {deal.doneTaskCount}/{deal.taskCount}
           </span>

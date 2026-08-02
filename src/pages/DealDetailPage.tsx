@@ -13,6 +13,7 @@ import CommentsFeed from "../components/acquisitions/CommentsFeed";
 import FinancialsPanel from "../components/acquisitions/FinancialsPanel";
 import DocumentsPanel from "../components/acquisitions/DocumentsPanel";
 import AiScoreCard from "../components/acquisitions/AiScoreCard";
+import DealHealthPanel from "../components/acquisitions/DealHealthPanel";
 import HistoryPanel from "../components/acquisitions/HistoryPanel";
 import KillDealModal from "../components/acquisitions/KillDealModal";
 import OwnerPanel from "../components/acquisitions/OwnerPanel";
@@ -182,6 +183,7 @@ export default function DealDetailPage() {
           </div>
           <div className="space-y-5 xl:col-span-2">
             <OwnerPanel deal={deal} canTransfer={canTransfer} onTransfer={() => setIsTransferOpen(true)} />
+            <DealHealthPanel deal={deal} />
             <FinancialsPanel deal={deal} />
             <AiScoreCard deal={deal} />
             <DocumentsPanel dealId={deal.id} />
