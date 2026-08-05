@@ -19,6 +19,12 @@ export default defineConfig({
         target: "http://localhost:5100",
         changeOrigin: true,
       },
+      // search-service (OpenSearch) handles keyword search only; plain browsing of the
+      // grid stays on /listings/v1 above. See api/properties.ts for the routing rule.
+      "^/search/v1": {
+        target: "http://localhost:5600",
+        changeOrigin: true,
+      },
       "^/auth/v1": {
         target: "http://localhost:5300",
         changeOrigin: true,
