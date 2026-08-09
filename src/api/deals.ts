@@ -1,7 +1,7 @@
 // Deals-service API. Mirrors DealsService.Api/DTOs — the service wraps payloads
 // in the { data, meta } envelope, so everything goes through the auth* helpers.
 
-import { authGet, authPost, authPut } from "./client";
+import { ApiError, authGet, authPost, authPut } from "./client";
 import type { PaginatedResponse } from "./types";
 
 /** A deterministic health signal on a deal (design doc §6.6), computed server-side on
@@ -127,8 +127,9 @@ export interface UpdateDealInput {
 }
 
 /** Deal list filters — all optional, AND'd server-side. Dates are "yyyy-MM-dd";
- *  cap rates are fractions (0.065 = 6.5%). `q` is full-text over the deal name and
- *  its snapshotted property name; `staleDays` the minimum days in the current stage. */
+ *  cap rates are fractions (0.065 = 6.5%). `q` is full-text — over the deal and property
+ *  name on Postgres, also over comment bodies and document filenames on OpenSearch;
+ *  `staleDays` the minimum days in the current stage. */
 export interface DealFilters {
   stage?: string;
   ownerId?: string;
@@ -146,7 +147,25 @@ export interface DealFilters {
   q?: string;
 }
 
-export function getDeals(
+// Same routing rule the listings grid follows (see api/properties.ts):
+//
+//   no keyword  → /deals/v1     (Postgres). Browsing — filter and paginate — is plain
+//                 relational work, so the board doesn't depend on the search stack.
+//   keyword     → /search/v1    (OpenSearch). Typo tolerance, relevance ranking, and a
+//                 corpus that reaches past the deal name into comment bodies and
+//                 document filenames.
+//
+// The two differ from the properties pair in posture, not in shape: both deals
+// endpoints require a bearer token and both return the { data, meta } envelope, so
+// both go through authGet. Using apiGet here would hand back the envelope instead of
+// the page — silently, with no error.
+//
+// The 16 query params, defaults and clamps are identical (diff-tested across filters
+// and paging), so the switch is only a base path. Set VITE_SEARCH_API=listings to keep
+// keyword search on Postgres too.
+const KEYWORD_BACKEND = import.meta.env.VITE_SEARCH_API ?? "search";
+
+export async function getDeals(
   page: number,
   pageSize: number,
   filters: DealFilters = {},
@@ -158,7 +177,30 @@ export function getDeals(
     if (value === undefined || value === null || value === "") continue;
     params.set(key, String(value));
   }
-  return authGet(`/deals/v1/deals?${params}`, { signal });
+
+  const query = params.toString();
+
+  if (filters.q?.trim() && KEYWORD_BACKEND === "search") {
+    try {
+      return await authGet(`/search/v1/deals?${query}`, { signal });
+    } catch (err) {
+      // Only fall back when search-service itself is the problem. An aborted request is
+      // react-query cancelling a superseded keystroke, and a 4xx — a 401 included — is a
+      // real client error that retrying against deals-service would only hide.
+      const isServerFault = !(err instanceof ApiError) || err.status >= 500;
+      if (signal?.aborted || !isServerFault) throw err;
+
+      // Postgres has full-text search too, just a blunter one: the deals tsvector covers
+      // only the deal name and its snapshotted property name, with no typo tolerance.
+      console.warn(
+        "[deals] search-service unavailable — falling back to Postgres full-text on " +
+          "/deals/v1. Fewer matches, no typo tolerance, no relevance ranking.",
+        err
+      );
+    }
+  }
+
+  return authGet(`/deals/v1/deals?${query}`, { signal });
 }
 
 export function getDeal(id: string, signal?: AbortSignal): Promise<DealResponse> {
