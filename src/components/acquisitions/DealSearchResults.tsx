@@ -9,7 +9,7 @@ import { useUserDirectory } from "../../lib/useUserDirectory";
 interface Props {
   deals: DealResponse[];
   query: string;
-  isLoading: boolean;
+  isPending: boolean;
   isError: boolean;
   onRetry: () => void;
 }
@@ -21,7 +21,7 @@ interface Props {
 //
 // Navigate-only, deliberately: advance and kill are stage transitions, and they belong on
 // the board where the stage you're moving from and to is visible.
-export default function DealSearchResults({ deals, query, isLoading, isError, onRetry }: Props) {
+export default function DealSearchResults({ deals, query, isPending, isError, onRetry }: Props) {
   const { nameOf, initialsOf } = useUserDirectory();
 
   if (isError) {
@@ -35,7 +35,7 @@ export default function DealSearchResults({ deals, query, isLoading, isError, on
     );
   }
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="mt-6 space-y-2">
         {Array.from({ length: 5 }, (_, i) => (

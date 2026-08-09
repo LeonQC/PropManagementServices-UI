@@ -119,7 +119,7 @@ export default function AcquisitionsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Acquisition Pipeline</h1>
           <p className="mt-1 text-sm text-slate-500">
             {isSearching
-              ? subtitle(results.isLoading ? null : resultTotal, debouncedSearch)
+              ? subtitle(results.isPending ? null : resultTotal, debouncedSearch)
               : "Drag a card to its next stage, or use the card menu."}
           </p>
         </div>
@@ -174,7 +174,9 @@ export default function AcquisitionsPage() {
           <DealSearchResults
             deals={results.data?.items ?? []}
             query={debouncedSearch}
-            isLoading={results.isLoading}
+            // isPending, not isLoading: between a failed attempt and its retry isFetching
+            // drops to false, and isLoading with it, which would flash the empty state.
+            isPending={results.isPending}
             isError={results.isError}
             onRetry={() => results.refetch()}
           />

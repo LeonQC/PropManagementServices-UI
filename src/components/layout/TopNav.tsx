@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
+import { useDebounce } from "../../lib/useDebounce";
 
 const NAV_ITEMS = [
   { label: "Dashboard", to: "/dashboard" },
@@ -25,6 +26,39 @@ export default function TopNav() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // The one global search box. /search keeps its query in ?q=, and this input is that
+  // param's editor while you're there — which is why there is no second box on the page.
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const onSearchPage = location.pathname === "/search";
+  const urlQuery = onSearchPage ? (params.get("q") ?? "") : "";
+  const entityType = onSearchPage ? params.get("type") : null;
+
+  const [query, setQuery] = useState(urlQuery);
+  const debouncedQuery = useDebounce(query.trim(), 300);
+
+  // Follow the URL: seeds the box from a shared link, and clears it on the way out of
+  // /search. Typing never fights this — the effect below has already pushed the same
+  // value into the URL by the time it changes.
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
+
+  // Live-update the results only once you're on /search. Typing here from the listings
+  // grid must not yank you off the page mid-keystroke, so elsewhere it takes Enter.
+  useEffect(() => {
+    if (!onSearchPage || debouncedQuery === urlQuery) return;
+    navigate(`/search?${searchParamsFor(debouncedQuery, entityType)}`, { replace: true });
+  }, [debouncedQuery, onSearchPage, urlQuery, entityType, navigate]);
+
+  const onSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const keyword = query.trim();
+    if (!keyword) return;
+    // A push, not a replace: Back should return to wherever the search started.
+    navigate(`/search?${searchParamsFor(keyword, entityType)}`);
+  };
 
   // Close the user menu on outside click.
   useEffect(() => {
@@ -81,14 +115,35 @@ export default function TopNav() {
 
         {/* Right-side actions */}
         <div className="ml-auto flex items-center gap-4 text-white/80">
-          <button
-            type="button"
-            aria-label="Search"
-            title="Coming soon"
-            className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/10"
-          >
-            <SearchIcon />
-          </button>
+          <form onSubmit={onSearchSubmit} role="search" className="relative">
+            {/* A real submit button, not decoration: it makes Enter submit the form
+                regardless of implicit-submission rules, and gives the box a click target. */}
+            <button
+              type="submit"
+              aria-label="Search"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+            >
+              <SearchIcon />
+            </button>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search properties and deals"
+              placeholder="Search everything..."
+              className="w-56 rounded-full border border-white/10 bg-white/10 py-1.5 pl-9 pr-8 text-sm text-white placeholder:text-white/50 focus:border-white/30 focus:bg-white/15 focus:outline-none"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+              >
+                <CloseIcon />
+              </button>
+            )}
+          </form>
           <button
             type="button"
             aria-label="Notifications"
@@ -145,11 +200,28 @@ export default function TopNav() {
   );
 }
 
+/** Preserves the entity-type filter across keyword edits — narrowing to Deals and then
+ *  retyping shouldn't silently widen back to everything. */
+function searchParamsFor(q: string, entityType: string | null): URLSearchParams {
+  const next = new URLSearchParams();
+  if (q) next.set("q", q);
+  if (entityType) next.set("type", entityType);
+  return next;
+}
+
 function SearchIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="7" />
       <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   );
 }
