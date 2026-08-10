@@ -49,9 +49,9 @@ export default function DealSearchResults({ deals, query, isPending, isError, on
     return (
       <div className="mt-12 text-center">
         <p className="text-sm font-medium text-slate-700">No deals match “{query}”.</p>
-        <p className="mt-1 text-sm text-slate-500">
-          Search covers deal and property names, comment bodies, and document filenames.
-        </p>
+        {/* No corpus blurb here, unlike the cross-entity page: this list can be served by
+            either backend, and only OpenSearch reaches comments and filenames. */}
+        <p className="mt-1 text-sm text-slate-500">Try a shorter or differently spelled keyword.</p>
       </div>
     );
   }
