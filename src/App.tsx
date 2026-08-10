@@ -7,7 +7,6 @@ import LoginPage from "./pages/LoginPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import AcquisitionsPage from "./pages/AcquisitionsPage";
 import DealDetailPage from "./pages/DealDetailPage";
-import GlobalSearchPage from "./pages/GlobalSearchPage";
 import RequireAuth from "./auth/RequireAuth";
 
 export default function App() {
@@ -22,9 +21,6 @@ export default function App() {
           <Route index element={<Navigate to="/listings" replace />} />
           <Route path="/listings" element={<ListingsPage />} />
           <Route path="/listings/:propertyId" element={<PropertyDetailPage />} />
-          {/* Cross-entity search. The keyword lives in ?q= (and ?type=) so the TopNav
-              box can drive it and any result set is a shareable link. */}
-          <Route path="/search" element={<GlobalSearchPage />} />
           {/* Destinations whose backends don't exist yet. */}
           <Route path="/dashboard" element={<ComingSoonPage title="Dashboard" />} />
           <Route path="/acquisitions" element={<AcquisitionsPage />} />
