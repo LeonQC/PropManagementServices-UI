@@ -81,6 +81,9 @@ export default function TopNav() {
 
         {/* Right-side actions */}
         <div className="ml-auto flex items-center gap-4 text-white/80">
+          {/* Global search lands with the Q&A assistant, which subsumes it: one box that
+              answers questions as well as finding records, over the same cross-entity
+              index. Per-page keyword search (listings grid, deal board) is already live. */}
           <button
             type="button"
             aria-label="Search"
