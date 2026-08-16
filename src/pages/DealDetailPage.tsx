@@ -13,6 +13,7 @@ import CommentsFeed from "../components/acquisitions/CommentsFeed";
 import FinancialsPanel from "../components/acquisitions/FinancialsPanel";
 import DocumentsPanel from "../components/acquisitions/DocumentsPanel";
 import AiScoreCard from "../components/acquisitions/AiScoreCard";
+import DealQaPanel from "../components/acquisitions/DealQaPanel";
 import DealHealthPanel from "../components/acquisitions/DealHealthPanel";
 import HistoryPanel from "../components/acquisitions/HistoryPanel";
 import KillDealModal from "../components/acquisitions/KillDealModal";
@@ -186,6 +187,7 @@ export default function DealDetailPage() {
             <DealHealthPanel deal={deal} />
             <FinancialsPanel deal={deal} />
             <AiScoreCard deal={deal} />
+            <DealQaPanel dealId={deal.id} />
             <DocumentsPanel dealId={deal.id} />
             <HistoryPanel dealId={deal.id} />
           </div>

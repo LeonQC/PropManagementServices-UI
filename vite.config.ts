@@ -37,6 +37,10 @@ export default defineConfig({
         target: "http://localhost:5400",
         changeOrigin: true,
       },
+      "^/ai/v1": {
+        target: "http://localhost:5700",
+        changeOrigin: true,
+      },
     },
   },
 });
