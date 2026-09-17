@@ -1,14 +1,21 @@
 import type { DealResponse, HealthFlagResponse } from "../../api/deals";
 import { flagMeta, severityBadgeClasses, sortBySeverity } from "../../lib/dealHealth";
+import { SCORE_COMPONENTS, unscoredReason } from "../../lib/dealScoring";
 
 interface Props {
   deal: DealResponse;
 }
 
-// AI score + rationale + the AI-derived judgment flags (design doc §6.3/§6.6). The
-// columns exist in the schema today; the ai-service that populates them is a later
-// milestone, so the empty state is the common case for now. The deterministic
-// health flags are a separate, always-populated set — see DealHealthPanel.
+// AI score + rationale + the AI-derived judgment flags (design doc §6.3/§6.6).
+//
+// The score is live: a background worker in ai-service recomputes it from a deterministic
+// formula whenever a deal's financials change, so most deals carry one. A missing score is
+// now the exception and always has a specific cause, which unscoredReason names rather than
+// leaving the user to guess.
+//
+// The rationale prose and the judgment flags are still unpopulated — both need a model call,
+// which is a later slice — so those two blocks stay empty for now. The deterministic health
+// flags are a separate, always-populated set; see DealHealthPanel.
 export default function AiScoreCard({ deal }: Props) {
   const flags = sortBySeverity(parseFlags(deal.riskFlags));
 
@@ -17,9 +24,7 @@ export default function AiScoreCard({ deal }: Props) {
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">AI Score</h2>
 
       {deal.aiScore == null ? (
-        <p className="mt-3 text-sm text-slate-400">
-          AI deal scoring is coming soon — the score, rationale and risk flags will appear here.
-        </p>
+        <UnscoredNote deal={deal} />
       ) : (
         <div className="mt-3">
           <div className="flex items-baseline gap-2">
@@ -44,14 +49,92 @@ export default function AiScoreCard({ deal }: Props) {
           )}
         </div>
       )}
+
+      <HowItIsCalculated />
     </section>
   );
 }
 
-// riskFlags is a JSON string column written by the (not yet built) ai-service, in
-// the design doc's [{type, severity, message}] shape. Anything that doesn't parse
-// to that shape is dropped rather than rendered — a half-written model response
-// should not put a broken badge on the page.
+/** Says why this particular deal has no number, instead of a generic placeholder. */
+function UnscoredNote({ deal }: Props) {
+  const reason = unscoredReason(deal);
+
+  if (reason.kind === "dead") {
+    return <p className="mt-3 text-sm text-slate-400">Dead deals are not scored.</p>;
+  }
+
+  if (reason.kind === "no-financials") {
+    // "Any one of" rather than listing them as requirements: a single financial input is
+    // enough for the formula, and implying all four are needed would send people hunting
+    // for numbers they don't have.
+    return (
+      <p className="mt-3 text-sm text-slate-400">
+        Not enough financial data to score. Any one of {joinOr(reason.missing)} will produce a
+        score.
+      </p>
+    );
+  }
+
+  return (
+    <p className="mt-3 text-sm text-slate-400">
+      No score yet. Scoring runs in the background and usually lands within a few seconds of a
+      change.
+    </p>
+  );
+}
+
+/** "a, b or c" — reads as a sentence rather than as a comma-separated dump. */
+function joinOr(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} or ${items[items.length - 1]}`;
+}
+
+/**
+ * Collapsed by default. The score is a single opaque number, and the first question anyone
+ * asks about one is what went into it — but that answer is reference material, not something
+ * to read on every visit, so it stays behind a disclosure rather than taking up the panel.
+ */
+function HowItIsCalculated() {
+  return (
+    <details className="group mt-4 border-t border-slate-100 pt-3">
+      <summary className="cursor-pointer list-none text-xs font-medium text-slate-500 hover:text-slate-700">
+        <span className="inline-block transition-transform group-open:rotate-90">›</span> How this
+        is calculated
+      </summary>
+
+      <div className="mt-3 space-y-3">
+        <p className="text-xs leading-relaxed text-slate-500">
+          A fixed formula over the deal's own numbers, not a model judgement. The same inputs
+          always produce the same score.
+        </p>
+
+        <ul className="space-y-2">
+          {SCORE_COMPONENTS.map((component) => (
+            <li key={component.label} className="text-xs">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-medium text-slate-700">{component.label}</span>
+                <span className="shrink-0 tabular-nums text-slate-400">{component.weight}%</span>
+              </div>
+              <p className="mt-0.5 leading-relaxed text-slate-500">{component.range}</p>
+            </li>
+          ))}
+        </ul>
+
+        <p className="text-xs leading-relaxed text-slate-500">
+          Weights are shared out across whichever inputs the deal actually has, so a partly
+          filled deal is scored on what it has rather than penalised for blank fields. A deal
+          with no financial inputs at all is left unscored.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+// riskFlags is a JSON string column holding the model-written judgment flags described in
+// §6.6, in the [{type, severity, message}] shape. Nothing writes it yet — that slice is still
+// to come — so this returns an empty list today. Anything that doesn't parse to the expected
+// shape is dropped rather than rendered: a half-written model response should not put a broken
+// badge on the page.
 function parseFlags(riskFlags: string | null): HealthFlagResponse[] {
   if (!riskFlags) return [];
   try {
