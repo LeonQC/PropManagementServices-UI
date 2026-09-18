@@ -25,6 +25,9 @@ export default function TasksPanel({ dealId }: Props) {
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["deal", dealId, "tasks"] });
+    // Task completion feeds the score's Execution component, which is computed on read.
+    // exact: a prefix match would also refetch the deal's comments and documents.
+    void queryClient.invalidateQueries({ queryKey: ["deal", dealId], exact: true });
     // Board cards show task rollups — keep them in sync.
     void queryClient.invalidateQueries({ queryKey: ["deals"] });
   }
