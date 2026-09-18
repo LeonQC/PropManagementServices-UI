@@ -6,16 +6,17 @@ interface Props {
   deal: DealResponse;
 }
 
-// AI score + rationale + the AI-derived judgment flags (design doc §6.3/§6.6).
+// Deal score + rationale + the AI-derived judgment flags (design doc §6.3/§6.6).
 //
-// The score is live: a background worker in ai-service recomputes it from a deterministic
-// formula whenever a deal's financials change, so most deals carry one. A missing score is
-// now the exception and always has a specific cause, which unscoredReason names rather than
-// leaving the user to guess.
+// Only two of those three involve a model, and the score is not one of them. It is a fixed
+// formula that deals-service evaluates on every read, so it is always current — including the
+// part that moves with time, which is why it is derived rather than stored. Most deals carry
+// one; a missing score always has a specific cause, which unscoredReason names rather than
+// leaving the reader to guess.
 //
-// The rationale prose and the judgment flags are still unpopulated — both need a model call,
-// which is a later slice — so those two blocks stay empty for now. The deterministic health
-// flags are a separate, always-populated set; see DealHealthPanel.
+// The rationale prose is written by a model and arrives asynchronously, so it may lag the
+// number briefly. The judgment flags are unpopulated until that slice lands. The deterministic
+// health flags are a separate, always-populated set; see DealHealthPanel.
 export default function AiScoreCard({ deal }: Props) {
   const flags = sortBySeverity(parseFlags(deal.riskFlags));
 
@@ -59,8 +60,12 @@ export default function AiScoreCard({ deal }: Props) {
 function UnscoredNote({ deal }: Props) {
   const reason = unscoredReason(deal);
 
-  if (reason.kind === "dead") {
-    return <p className="mt-3 text-sm text-slate-400">Dead deals are not scored.</p>;
+  if (reason.kind === "terminal") {
+    return (
+      <p className="mt-3 text-sm text-slate-400">
+        {reason.stageLabel} deals are not scored.
+      </p>
+    );
   }
 
   if (reason.kind === "no-financials") {

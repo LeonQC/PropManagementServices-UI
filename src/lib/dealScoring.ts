@@ -11,6 +11,7 @@
 // describes it.
 
 import type { DealResponse } from "../api/deals";
+import { isTerminal, stageMeta } from "./dealStages";
 
 export interface ScoreComponent {
   label: string;
@@ -64,7 +65,7 @@ export const SCORE_COMPONENTS: ScoreComponent[] = [
 /** Why a deal has no score. The worker publishes a number for every deal that has one, so
  *  a null score always has one of these explanations behind it. */
 export type UnscoredReason =
-  | { kind: "dead" }
+  | { kind: "terminal"; stageLabel: string }
   | { kind: "no-financials"; missing: string[] }
   | { kind: "pending" };
 
@@ -72,13 +73,16 @@ export type UnscoredReason =
  * Works out why a deal shows no score, so the UI can say something true instead of
  * something generic.
  *
- * Mirrors the worker's skip rules: dead deals are never scored, and a deal needs at least
- * one financial input before a number means anything. Presence is all that is checked here
- * — the worker additionally ignores a value that is out of range for a fraction, such as an
- * occupancy entered as 88 rather than 0.88, which would leave this reporting "pending".
+ * Mirrors DealScore's skip rules: terminal deals are never scored, and a deal needs at least
+ * one financial input before a number means anything. Presence is all that is checked here —
+ * DealScore additionally ignores a value out of range for a fraction, such as an occupancy
+ * entered as 88 rather than 0.88, which would leave this reporting "pending".
  */
 export function unscoredReason(deal: DealResponse): UnscoredReason {
-  if (deal.stage === "Dead") return { kind: "dead" };
+  // Acquired as well as Dead. A finished deal has no trajectory left to score, so a number
+  // projecting how it is going would be noise — and reporting it as pending would promise a
+  // score that is never coming.
+  if (isTerminal(deal.stage)) return { kind: "terminal", stageLabel: stageMeta(deal.stage).label };
 
   const missing: string[] = [];
   // The cap rate component needs both sides to mean anything.
