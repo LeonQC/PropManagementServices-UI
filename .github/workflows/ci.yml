@@ -1,0 +1,31 @@
+# Typecheck and build the frontend on each pull request and on every push to master.
+# The backend services have their own workflow in PropManagementServices.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Frontend typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # `build` runs tsc again before vite; the separate step above keeps type errors
+      # readable as their own failed step.
+      - run: npx vite build
